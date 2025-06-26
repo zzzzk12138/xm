@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaomi.signal.mapper.signalMapper">
+    <!-- 结果映射 -->
+    <resultMap id="SignalResultMap" type="com.xiaomi.signal.entity.Signal">
+        <id column="signal_id" property="signalId"/>
+        <result column="vid" property="vid"/>
+        <result column="max_voltage" property="maxVoltage"/>
+        <result column="min_voltage" property="minVoltage"/>
+        <result column="max_current" property="maxCurrent"/>
+        <result column="min_current" property="minCurrent"/>
+        <result column="recorded_at" property="recordedAt"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 基础列 -->
+    <sql id="Base_Column_List">
+        signal_id, vid, max_voltage, min_voltage, max_current, min_current, recorded_at, status
+    </sql>
+
+    <!-- 保存信号数据 -->
+    <insert id="save" parameterType="com.xiaomi.signal.entity.Signal" useGeneratedKeys="true" keyProperty="signalId">
+        INSERT INTO `signal` (
+            vid, max_voltage, min_voltage, max_current, min_current, recorded_at, status
+        ) VALUES (
+            #{vid}, #{maxVoltage}, #{minVoltage}, #{maxCurrent}, #{minCurrent}, #{recordedAt}, #{status}
+        )
+    </insert>
+
+    <!-- 根据ID查找信号 -->
+    <select id="findById" resultMap="SignalResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM `signal`
+        WHERE signal_id = #{signalId} AND status = false
+    </select>
+
+    <!-- 根据VID查找信号列表 -->
+    <select id="findByVid" resultMap="SignalResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM `signal`
+        WHERE vid = #{vid}
+        AND status = 0
+        ORDER BY recorded_at DESC
+    </select>
+
+    <!-- 查找所有未删除的信号 -->
+    <select id="getAllSignals" resultType="com.xiaomi.signal.entity.Signal">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM `signal`
+        WHERE status = 0
+        ORDER BY recorded_at DESC
+    </select>
+
+    <!-- 查找所有信号 -->
+    <select id="findAll" resultMap="SignalResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM `signal`
+        WHERE status = false
+        ORDER BY recorded_at DESC
+    </select>
+
+    <!-- 更新信号数据 -->
+    <update id="update" parameterType="com.xiaomi.signal.entity.Signal">
+        UPDATE `signal`
+        <set>
+            <if test="maxVoltage != null">max_voltage = #{maxVoltage},</if>
+            <if test="minVoltage != null">min_voltage = #{minVoltage},</if>
+            <if test="maxCurrent != null">max_current = #{maxCurrent},</if>
+            <if test="minCurrent != null">min_current = #{minCurrent},</if>
+            <if test="recordedAt != null">recorded_at = #{recordedAt},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE signal_id = #{signalId}
+    </update>
+
+    <!-- 软删除信号 -->
+    <update id="softDelete">
+        UPDATE `signal`
+        SET status = 1
+        WHERE signal_id = #{signalId} AND status = false
+    </update>
+
+    <!-- 检查信号是否存在 -->
+    <select id="existsById" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM `signal`
+        WHERE signal_id = #{signalId} AND status = 0
+    </select>
+
+    <!-- 根据VID软删除信号 -->
+    <update id="softDeleteByVid">
+        UPDATE `signal`
+        SET status = 1
+        WHERE vid = #{vid} AND status = false
+    </update>
+
+    <!-- 根据VID列表批量更新信号状态 -->
+    <update id="updateSignalStatusByVids">
+        UPDATE `signal`
+        SET status = 1
+        WHERE vid IN
+        <foreach collection="vids" item="vid" open="(" separator="," close=")">
+            #{vid}
+        </foreach>
+        AND status = 0
+    </update>
+</mapper> 

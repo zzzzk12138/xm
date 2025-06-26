@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.xiaomi.warn.mapper.vehicleMapper">
+    <!-- 结果映射 -->
+    <resultMap id="vehicleResultMap" type="com.xiaomi.warn.entity.Vehicle">
+        <id column="vid" property="vid"/>
+        <result column="car_id" property="carId"/>
+        <result column="battery_type_id" property="batteryTypeId"/>
+        <result column="total_mileage" property="totalMileage"/>
+        <result column="battery_health" property="batteryHealth"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <!-- 保存车辆信息 -->
+    <insert id="save" parameterType="com.xiaomi.warn.entity.Vehicle">
+        INSERT INTO vehicle (
+            vid,
+            car_id,
+            battery_type_id,
+            total_mileage,
+            battery_health,
+            created_at,
+            updated_at,
+            is_deleted
+        ) VALUES (
+            #{vid},
+            #{carId},
+            #{batteryTypeId},
+            #{totalMileage},
+            #{batteryHealth},
+            #{createdAt},
+            #{updatedAt},
+            #{isDeleted}
+        )
+    </insert>
+
+    <!-- 更新车辆信息 -->
+    <update id="update" parameterType="com.xiaomi.warn.entity.Vehicle">
+        UPDATE vehicle 
+        SET 
+            total_mileage = #{totalMileage},
+            battery_health = #{batteryHealth},
+            updated_at = #{updatedAt}
+        WHERE vid = #{vid}
+        AND is_deleted = false
+    </update>
+
+    <!-- 根据VID查询未删除的车辆 -->
+    <select id="findById" resultMap="vehicleResultMap">
+        SELECT * FROM vehicle 
+        WHERE vid = #{vid} 
+        AND is_deleted = false
+    </select>
+
+    <!-- 根据车架号查询未删除的车辆 -->
+    <select id="findByCarId" resultMap="vehicleResultMap">
+        SELECT * FROM vehicle 
+        WHERE car_id = #{carId} 
+        AND is_deleted = false
+    </select>
+
+    <!-- 查询所有未删除的车辆 -->
+    <select id="findAll" resultMap="vehicleResultMap">
+        SELECT * FROM vehicle 
+        WHERE is_deleted = false
+    </select>
+
+    <!-- 软删除车辆 -->
+    <update id="softDelete">
+        UPDATE vehicle 
+        SET 
+            is_deleted = true,
+            updated_at = NOW()
+        WHERE vid = #{vid}
+        AND is_deleted = false
+    </update>
+
+    <!-- 检查车辆是否存在且未删除 -->
+    <select id="existsById" resultType="boolean">
+        SELECT COUNT(1) > 0 
+        FROM vehicle 
+        WHERE vid = #{vid} 
+        AND is_deleted = false
+    </select>
+
+    <!-- 检查车架号是否存在且未删除 -->
+    <select id="existsByCarId" resultType="boolean">
+        SELECT COUNT(1) > 0 
+        FROM vehicle 
+        WHERE car_id = #{carId} 
+        AND is_deleted = false
+    </select>
+
+    <!-- 根据车架号软删除车辆 -->
+    <update id="softDeleteByCarId">
+        UPDATE vehicle 
+        SET 
+            is_deleted = true,
+            updated_at = NOW()
+        WHERE car_id = #{carId}
+        AND is_deleted = false
+    </update>
+
+    <!-- 联合查询车辆信息和电池类型名称 -->
+    <select id="findVehicleWithBatteryType" resultType="java.util.Map">
+        SELECT 
+            v.*,
+            b.type_name as batteryTypeName
+        FROM 
+            vehicle v
+            LEFT JOIN battery_type b ON v.battery_type_id = b.id
+        WHERE 
+            v.car_id = #{carId}
+            AND v.is_deleted = 0
+    </select>
+
+    <!-- 根据车架号查询电池类型名称 -->
+    <select id="findBatteryTypeName" resultType="string">
+        SELECT 
+            b.type_name
+        FROM 
+            vehicle v
+            LEFT JOIN battery_type b ON v.battery_type_id = b.id
+        WHERE 
+            v.car_id = #{carId}
+            AND v.is_deleted = 0
+    </select>
+
+    <select id="findVidsByCarIds" resultType="string">
+        SELECT DISTINCT vid
+        FROM vehicle
+        WHERE car_id IN
+        <foreach collection="carIds" item="carId" open="(" separator="," close=")">
+            #{carId}
+        </foreach>
+        AND vid IS NOT NULL
+        AND is_deleted = false
+    </select>
+</mapper>
