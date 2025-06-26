@@ -1,4 +1,4 @@
-package com.xiaomi.bms.config;
+package com.xiaomi.warn.config;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;

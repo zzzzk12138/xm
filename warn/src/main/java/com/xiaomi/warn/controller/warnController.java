@@ -25,7 +25,7 @@ public class warnController {
     @Autowired
     private warnService warnService;
 
-    @PostMapping("/receive")
+    @PostMapping()
     public Map<String, Object> receiveWarns(@Valid @RequestBody List<warnDTO> warnDTOList) {
         log.info("接收到警告信息列表, 数量: {}", warnDTOList.size());
         

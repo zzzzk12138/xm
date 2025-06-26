@@ -20,20 +20,4 @@ public interface warnService {
      * @return 预警信息列表
      */
     List<Map<String, Object>> getWarnsByCarId(Integer carId);
-
-    /**
-     * 根据电池类型和电压差值获取电压预警规则
-     * @param batteryTypeId 电池类型ID
-     * @param voltageDiff 电压差值
-     * @return 预警规则
-     */
-    WarnRule getVoltageWarnRule(int batteryTypeId, BigDecimal voltageDiff);
-
-    /**
-     * 根据电池类型和电流差值获取电流预警规则
-     * @param batteryTypeId 电池类型ID
-     * @param currentDiff 电流差值
-     * @return 预警规则
-     */
-    WarnRule getCurrentWarnRule(int batteryTypeId, BigDecimal currentDiff);
 }

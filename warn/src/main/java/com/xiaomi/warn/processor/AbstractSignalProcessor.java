@@ -4,6 +4,7 @@ import com.xiaomi.warn.dto.warnDTO;
 import com.xiaomi.warn.entity.BatteryType;
 import com.xiaomi.warn.entity.WarnRule;
 import com.xiaomi.warn.mapper.warnMapper;
+import com.xiaomi.warn.mapper.warnRuleMapper;
 import com.xiaomi.warn.utils.WarnResultBuilder;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,8 +18,10 @@ import java.util.Map;
 public abstract class AbstractSignalProcessor implements SignalProcessor {
     
     protected final warnMapper warnMapper;
+    protected final warnRuleMapper warnRuleMapper;
     
-    protected AbstractSignalProcessor(warnMapper warnMapper) {
+    protected AbstractSignalProcessor(warnRuleMapper warnRuleMapper, warnMapper warnMapper) {
+        this.warnRuleMapper = warnRuleMapper;
         this.warnMapper = warnMapper;
     }
 

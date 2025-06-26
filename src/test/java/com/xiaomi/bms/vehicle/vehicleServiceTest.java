@@ -15,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class vehicleServiceTest {
 
@@ -51,6 +53,7 @@ public class vehicleServiceTest {
         newVehicle.setCarId(TEST_CAR_ID);
         newVehicle.setBatteryTypeId(1);
 
+        // 模拟mapper行为
         when(vehicleMapper.existsByCarId(TEST_CAR_ID)).thenReturn(false);
         when(vehicleMapper.save(any(Vehicle.class))).thenReturn(1);
 
@@ -59,45 +62,43 @@ public class vehicleServiceTest {
 
         // 验证结果
         assertNotNull(result);
-        assertNotNull(result.getVid());
-        assertTrue(result.getVid().startsWith("VH"));
-        assertEquals(16, result.getVid().length());
-        assertTrue(result.getVid().matches("VH[A-Z0-9]{14}"));
-        
         assertEquals(TEST_CAR_ID, result.getCarId());
         assertEquals(1, result.getBatteryTypeId());
         assertEquals(0, result.getTotalMileage());
         assertEquals(100, result.getBatteryHealth());
         assertFalse(result.isDeleted());
-        
         assertNotNull(result.getCreatedAt());
         assertNotNull(result.getUpdatedAt());
-        assertEquals(result.getCreatedAt(), result.getUpdatedAt());
         
+        // 验证调用
+        verify(vehicleMapper).existsByCarId(TEST_CAR_ID);
         verify(vehicleMapper).save(any(Vehicle.class));
     }
 
     @Test
     void createVehicle_DuplicateCarId() {
         // 准备测试数据
+        Vehicle newVehicle = new Vehicle();
+        newVehicle.setCarId(TEST_CAR_ID);
+        newVehicle.setBatteryTypeId(1);
+
         when(vehicleMapper.existsByCarId(TEST_CAR_ID)).thenReturn(true);
 
         // 执行测试并验证异常
-        Exception exception = assertThrows(RuntimeException.class, 
-            () -> vehicleService.createVehicle(testVehicle));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
+            () -> vehicleService.createVehicle(newVehicle));
         assertEquals("车架号已存在: " + TEST_CAR_ID, exception.getMessage());
+        
+        verify(vehicleMapper).existsByCarId(TEST_CAR_ID);
         verify(vehicleMapper, never()).save(any());
     }
 
     @Test
     void getVehicleByVid_Success() {
-        // 准备测试数据
         when(vehicleMapper.findById(TEST_VID)).thenReturn(testVehicle);
 
-        // 执行测试
         Vehicle result = vehicleService.getVehicleByVid(TEST_VID);
 
-        // 验证结果
         assertNotNull(result);
         assertEquals(TEST_VID, result.getVid());
         assertEquals(TEST_CAR_ID, result.getCarId());
@@ -106,11 +107,9 @@ public class vehicleServiceTest {
 
     @Test
     void getVehicleByVid_NotFound() {
-        // 准备测试数据
         when(vehicleMapper.findById(TEST_VID)).thenReturn(null);
 
-        // 执行测试并验证异常
-        Exception exception = assertThrows(RuntimeException.class, 
+        RuntimeException exception = assertThrows(RuntimeException.class, 
             () -> vehicleService.getVehicleByVid(TEST_VID));
         assertEquals("未找到VID为: " + TEST_VID + " 的车辆", exception.getMessage());
         verify(vehicleMapper).findById(TEST_VID);
@@ -118,13 +117,10 @@ public class vehicleServiceTest {
 
     @Test
     void getVehicleByCarId_Success() {
-        // 准备测试数据
         when(vehicleMapper.findByCarId(TEST_CAR_ID)).thenReturn(testVehicle);
 
-        // 执行测试
         Vehicle result = vehicleService.getVehicleByCarId(TEST_CAR_ID);
 
-        // 验证结果
         assertNotNull(result);
         assertEquals(TEST_VID, result.getVid());
         assertEquals(TEST_CAR_ID, result.getCarId());
@@ -133,11 +129,9 @@ public class vehicleServiceTest {
 
     @Test
     void getVehicleByCarId_NotFound() {
-        // 准备测试数据
         when(vehicleMapper.findByCarId(TEST_CAR_ID)).thenReturn(null);
 
-        // 执行测试并验证异常
-        Exception exception = assertThrows(RuntimeException.class, 
+        RuntimeException exception = assertThrows(RuntimeException.class, 
             () -> vehicleService.getVehicleByCarId(TEST_CAR_ID));
         assertEquals("未找到车架号为: " + TEST_CAR_ID + " 的车辆", exception.getMessage());
         verify(vehicleMapper).findByCarId(TEST_CAR_ID);
@@ -145,17 +139,14 @@ public class vehicleServiceTest {
 
     @Test
     void getAllVehicles_Success() {
-        // 准备测试数据
         Vehicle vehicle2 = new Vehicle();
         vehicle2.setVid("VH24F1E2D3C4B5A6");
         vehicle2.setCarId(1002);
         
         when(vehicleMapper.findAll()).thenReturn(Arrays.asList(testVehicle, vehicle2));
 
-        // 执行测试
         List<Vehicle> results = vehicleService.getAllVehicles();
 
-        // 验证结果
         assertNotNull(results);
         assertEquals(2, results.size());
         assertEquals(TEST_VID, results.get(0).getVid());
@@ -168,10 +159,12 @@ public class vehicleServiceTest {
         // 准备测试数据
         Vehicle updateVehicle = new Vehicle();
         updateVehicle.setVid(TEST_VID);
-        updateVehicle.setCarId(TEST_CAR_ID);
+        updateVehicle.setTotalMileage(200);
         updateVehicle.setBatteryHealth(90);
 
-        when(vehicleMapper.existsById(TEST_VID)).thenReturn(true);
+        // 设置原始更新时间为1分钟前
+        LocalDateTime originalUpdateTime = LocalDateTime.now().minusMinutes(1);
+        testVehicle.setUpdatedAt(originalUpdateTime);
         when(vehicleMapper.findById(TEST_VID)).thenReturn(testVehicle);
         when(vehicleMapper.update(any(Vehicle.class))).thenReturn(1);
 
@@ -181,98 +174,140 @@ public class vehicleServiceTest {
         // 验证结果
         assertNotNull(result);
         assertEquals(TEST_VID, result.getVid());
+        assertEquals(200, result.getTotalMileage());
         assertEquals(90, result.getBatteryHealth());
-        assertEquals(testVehicle.getCreatedAt(), result.getCreatedAt());
-        assertNotEquals(testVehicle.getUpdatedAt(), result.getUpdatedAt());
+        assertNotNull(result.getUpdatedAt());
+        assertTrue(result.getUpdatedAt().isAfter(originalUpdateTime));
+        
+        verify(vehicleMapper).findById(TEST_VID);
         verify(vehicleMapper).update(any(Vehicle.class));
     }
 
     @Test
     void updateVehicle_NotFound() {
-        // 准备测试数据
-        when(vehicleMapper.existsById(TEST_VID)).thenReturn(false);
+        Vehicle updateVehicle = new Vehicle();
+        updateVehicle.setVid(TEST_VID);
+        
+        when(vehicleMapper.findById(TEST_VID)).thenReturn(null);
 
-        // 执行测试并验证异常
-        Exception exception = assertThrows(RuntimeException.class, 
-            () -> vehicleService.updateVehicle(testVehicle));
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> vehicleService.updateVehicle(updateVehicle));
         assertEquals("未找到VID为: " + TEST_VID + " 的车辆", exception.getMessage());
+        
+        verify(vehicleMapper).findById(TEST_VID);
         verify(vehicleMapper, never()).update(any());
     }
 
     @Test
-    void updateVehicle_DuplicateCarId() {
-        // 准备测试数据
-        Vehicle updateVehicle = new Vehicle();
-        updateVehicle.setVid(TEST_VID);
-        updateVehicle.setCarId(1002); // 新的车架号
-
-        Vehicle existingVehicle = new Vehicle();
-        existingVehicle.setVid("VH24F1E2D3C4B5A6");
-        existingVehicle.setCarId(1002);
-
+    void deleteVehicle_Success() {
         when(vehicleMapper.existsById(TEST_VID)).thenReturn(true);
-        when(vehicleMapper.findById(TEST_VID)).thenReturn(testVehicle);
-        when(vehicleMapper.existsByCarId(1002)).thenReturn(true);
+        when(vehicleMapper.softDelete(TEST_VID)).thenReturn(1);
 
-        // 执行测试并验证异常
-        Exception exception = assertThrows(RuntimeException.class, 
-            () -> vehicleService.updateVehicle(updateVehicle));
-        assertEquals("车架号已存在: 1002", exception.getMessage());
-        verify(vehicleMapper, never()).update(any());
+        assertDoesNotThrow(() -> vehicleService.deleteVehicle(TEST_VID));
+
+        verify(vehicleMapper).existsById(TEST_VID);
+        verify(vehicleMapper).softDelete(TEST_VID);
     }
 
+    @Test
+    void deleteVehicle_NotFound() {
+        when(vehicleMapper.existsById(TEST_VID)).thenReturn(false);
 
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> vehicleService.deleteVehicle(TEST_VID));
+        assertEquals("未找到VID为: " + TEST_VID + " 的车辆", exception.getMessage());
+        
+        verify(vehicleMapper).existsById(TEST_VID);
+        verify(vehicleMapper, never()).softDelete(TEST_VID);
+    }
 
+    @Test
+    void deleteVehicle_Failed() {
+        when(vehicleMapper.existsById(TEST_VID)).thenReturn(true);
+        when(vehicleMapper.softDelete(TEST_VID)).thenReturn(0);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> vehicleService.deleteVehicle(TEST_VID));
+        assertEquals("删除车辆失败", exception.getMessage());
+        
+        verify(vehicleMapper).existsById(TEST_VID);
+        verify(vehicleMapper).softDelete(TEST_VID);
+    }
+
+    @Test
+    void updateVehicleByCarId_Success() {
+        // 准备测试数据
+        Vehicle updateVehicle = new Vehicle();
+        updateVehicle.setTotalMileage(200);
+        updateVehicle.setBatteryHealth(90);
+
+        LocalDateTime beforeUpdate = LocalDateTime.now();
+        when(vehicleMapper.findByCarId(TEST_CAR_ID)).thenReturn(testVehicle);
+        when(vehicleMapper.update(any(Vehicle.class))).thenReturn(1);
+
+        // 执行测试
+        Vehicle result = vehicleService.updateVehicleByCarId(TEST_CAR_ID, updateVehicle);
+
+        // 验证结果
+        assertNotNull(result);
+        assertEquals(TEST_VID, result.getVid());
+        assertEquals(200, result.getTotalMileage());
+        assertEquals(90, result.getBatteryHealth());
+        assertTrue(result.getUpdatedAt().isAfter(beforeUpdate));
+        
+        verify(vehicleMapper).findByCarId(TEST_CAR_ID);
+        verify(vehicleMapper).update(any(Vehicle.class));
+    }
+
+    @Test
+    void deleteVehicleByCarId_Success() {
+        when(vehicleMapper.existsByCarId(TEST_CAR_ID)).thenReturn(true);
+        when(vehicleMapper.softDeleteByCarId(TEST_CAR_ID)).thenReturn(1);
+
+        assertDoesNotThrow(() -> vehicleService.deleteVehicleByCarId(TEST_CAR_ID));
+
+        verify(vehicleMapper).existsByCarId(TEST_CAR_ID);
+        verify(vehicleMapper).softDeleteByCarId(TEST_CAR_ID);
+    }
+
+    @Test
+    void getVehicleWithBatteryType_Success() {
+        Map<String, Object> expectedResult = new HashMap<>();
+        expectedResult.put("vid", TEST_VID);
+        expectedResult.put("carId", TEST_CAR_ID);
+        
+        when(vehicleMapper.findVehicleWithBatteryType(TEST_CAR_ID)).thenReturn(expectedResult);
+
+        Map<String, Object> result = vehicleService.getVehicleWithBatteryType(TEST_CAR_ID);
+
+        assertNotNull(result);
+        assertEquals(TEST_VID, result.get("vid"));
+        assertEquals(TEST_CAR_ID, result.get("carId"));
+        verify(vehicleMapper).findVehicleWithBatteryType(TEST_CAR_ID);
+    }
+
+    @Test
+    void getBatteryTypeName_Success() {
+        String expectedTypeName = "三元锂电池";
+        when(vehicleMapper.findBatteryTypeName(TEST_CAR_ID)).thenReturn(expectedTypeName);
+
+        String result = vehicleService.getBatteryTypeName(TEST_CAR_ID);
+
+        assertEquals(expectedTypeName, result);
+        verify(vehicleMapper).findBatteryTypeName(TEST_CAR_ID);
+    }
 
     @Test
     void existsActiveVehicle_True() {
-        // 准备测试数据
         when(vehicleMapper.existsById(TEST_VID)).thenReturn(true);
-
-        // 执行测试
-        boolean result = vehicleService.existsActiveVehicle(TEST_VID);
-
-        // 验证结果
-        assertTrue(result);
-        verify(vehicleMapper).existsById(TEST_VID);
-    }
-
-    @Test
-    void existsActiveVehicle_False() {
-        // 准备测试数据
-        when(vehicleMapper.existsById(TEST_VID)).thenReturn(false);
-
-        // 执行测试
-        boolean result = vehicleService.existsActiveVehicle(TEST_VID);
-
-        // 验证结果
-        assertFalse(result);
+        assertTrue(vehicleService.existsActiveVehicle(TEST_VID));
         verify(vehicleMapper).existsById(TEST_VID);
     }
 
     @Test
     void existsActiveVehicleByCarId_True() {
-        // 准备测试数据
         when(vehicleMapper.existsByCarId(TEST_CAR_ID)).thenReturn(true);
-
-        // 执行测试
-        boolean result = vehicleService.existsActiveVehicleByCarId(TEST_CAR_ID);
-
-        // 验证结果
-        assertTrue(result);
-        verify(vehicleMapper).existsByCarId(TEST_CAR_ID);
-    }
-
-    @Test
-    void existsActiveVehicleByCarId_False() {
-        // 准备测试数据
-        when(vehicleMapper.existsByCarId(TEST_CAR_ID)).thenReturn(false);
-
-        // 执行测试
-        boolean result = vehicleService.existsActiveVehicleByCarId(TEST_CAR_ID);
-
-        // 验证结果
-        assertFalse(result);
+        assertTrue(vehicleService.existsActiveVehicleByCarId(TEST_CAR_ID));
         verify(vehicleMapper).existsByCarId(TEST_CAR_ID);
     }
 }

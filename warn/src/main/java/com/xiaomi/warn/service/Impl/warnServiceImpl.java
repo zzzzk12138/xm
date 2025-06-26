@@ -14,6 +14,7 @@ import com.xiaomi.warn.processor.impl.VoltageProcessor;
 import com.xiaomi.warn.processor.impl.CurrentProcessor;
 import com.xiaomi.warn.service.warnService;
 import com.xiaomi.warn.service.vehicleService;
+import com.xiaomi.warn.service.warnRuleService;
 import com.xiaomi.warn.task.warnSignalProviderTask;
 import com.xiaomi.warn.utils.WarnResultBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +93,9 @@ public class warnServiceImpl implements warnService {
 
     @Autowired
     private CurrentProcessor currentProcessor;
+
+    @Autowired
+    private warnRuleService warnRuleService;
 
     @Override
     public List<Map<String, Object>> processWarns(List<warnDTO> warnDTOList) {
@@ -191,40 +195,6 @@ public class warnServiceImpl implements warnService {
         }
         
         return new ProcessBatchResult(results, carIds);
-    }
-
-    /**
-     * 获取电压差报警规则
-     * @param batteryTypeId 电池类型ID
-     * @param voltageDiff 电压差值
-     * @return 报警规则，如果差值太小返回level为-1的规则
-     */
-    @Override
-    public WarnRule getVoltageWarnRule(int batteryTypeId, BigDecimal voltageDiff) {
-        WarnRule rule = warnMapper.getVoltageWarnRule(batteryTypeId, voltageDiff);
-        if (rule == null) {
-            log.info("电压差值{}V小于最小报警阈值，不需要报警", voltageDiff);
-            rule = new WarnRule();
-            rule.setWarnLevel((byte) -1);
-        }
-        return rule;
-    }
-
-    /**
-     * 获取电流差报警规则
-     * @param batteryTypeId 电池类型ID
-     * @param currentDiff 电流差值
-     * @return 报警规则，如果差值太小返回level为-1的规则
-     */
-    @Override
-    public WarnRule getCurrentWarnRule(int batteryTypeId, BigDecimal currentDiff) {
-        WarnRule rule = warnMapper.getCurrentWarnRule(batteryTypeId, currentDiff);
-        if (rule == null) {
-            log.info("电流差值{}A小于最小报警阈值，不需要报警", currentDiff);
-            rule = new WarnRule();
-            rule.setWarnLevel((byte) -1);
-        }
-        return rule;
     }
 
     @Override

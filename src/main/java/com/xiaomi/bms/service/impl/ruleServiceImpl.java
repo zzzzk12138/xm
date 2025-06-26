@@ -4,6 +4,8 @@ import com.xiaomi.bms.entity.WarnRule;
 import com.xiaomi.bms.mapper.ruleMapper;
 import com.xiaomi.bms.service.ruleService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.integration.redis.util.RedisLockRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,15 @@ public class ruleServiceImpl implements ruleService {
     
     @Autowired
     private ruleMapper ruleMapper;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private RedisLockRegistry redisLockRegistry;
+
+    // 按照 key：WARN_RULE_KEY_PREFIX:ruleCode:battery_type_id 存储
+    private static final String WARN_RULE_KEY_PREFIX = "warnrule:";
 
     @Override
     @Transactional
@@ -40,9 +51,25 @@ public class ruleServiceImpl implements ruleService {
         
         // 设置默认值
         rule.setDeleted(false);
-        
+
         // 执行插入操作
         boolean result = ruleMapper.insert(rule) > 0;
+        
+        if (result) {
+            try {
+                // 构建Redis key
+                String redisKey = WARN_RULE_KEY_PREFIX + rule.getRuleCode() + ":" + rule.getBatteryTypeId();
+                
+                // 将规则追加到Redis List中
+                redisTemplate.opsForList().rightPush(redisKey, rule);
+                
+                log.info("告警规则已追加到Redis List中: key={}", redisKey);
+            } catch (Exception e) {
+                log.error("将告警规则存入Redis失败: {}", e.getMessage(), e);
+                // 不影响主流程，即使Redis存储失败也返回true
+            }
+        }
+        
         log.info("告警规则创建{}: {}", result ? "成功" : "失败", rule);
         return result;
     }
