@@ -99,6 +99,14 @@ public class warnServiceImpl implements warnService {
 
     @Override
     public List<Map<String, Object>> processWarns(List<warnDTO> warnDTOList) {
+        if (warnDTOList == null) {
+            throw new IllegalArgumentException("警告信息列表不能为null");
+        }
+        
+        if (warnDTOList.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
         List<Map<String, Object>> allResults = Collections.synchronizedList(new ArrayList<>());
         Set<Integer> allCarIds = Collections.synchronizedSet(new HashSet<>());
         
@@ -135,6 +143,7 @@ public class warnServiceImpl implements warnService {
             }
         } catch (Exception e) {
             log.error("并行处理警告信息失败: {}", e.getMessage(), e);
+            return Collections.emptyList();
         }
 
         long end = System.currentTimeMillis();
@@ -202,6 +211,15 @@ public class warnServiceImpl implements warnService {
         log.info("开始查询车辆预警信息: carId={}", carId);
         List<Map<String, Object>> results = new ArrayList<>();
         
+        if (carId == null) {
+            log.error("查询车辆预警信息失败：未找到车辆信息, carId=null");
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("车架编号", carId);
+            errorResult.put("error", "未找到车辆信息");
+            results.add(errorResult);
+            return results;
+        }
+
         try {
             Vehicle vehicleByCarId = vehicleService.getVehicleByCarId(carId);
             if (vehicleByCarId == null) {
@@ -230,7 +248,7 @@ public class warnServiceImpl implements warnService {
             log.error("查询车辆预警信息失败: carId={}, error={}", carId, e.getMessage(), e);
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("车架编号", carId);
-            errorResult.put("error", "查询失败: " + e.getMessage());
+            errorResult.put("error", e.getMessage());
             results.add(errorResult);
         }
         

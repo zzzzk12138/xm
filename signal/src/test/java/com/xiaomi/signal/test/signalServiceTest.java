@@ -336,4 +336,65 @@ public class signalServiceTest {
         verify(redisTemplate).hasKey(anyString());
         verify(signalMapper).existsById(TEST_SIGNAL_ID);
     }
+    
+    @Test
+    void getSignalById_FromDatabase() {
+        // 模拟Redis缓存中没有数据
+        when(redisTemplate.opsForValue().get(anyString())).thenReturn(null);
+        // 模拟从数据库中获取数据
+        when(signalMapper.findById(TEST_SIGNAL_ID)).thenReturn(testSignal);
+        
+        // 执行测试
+        Signal result = signalService.getSignalById(TEST_SIGNAL_ID);
+        
+        // 验证结果
+        assertNotNull(result);
+        assertEquals(TEST_SIGNAL_ID, result.getSignalId());
+        assertEquals(TEST_VID, result.getVid());
+        
+        // 验证调用
+        verify(redisTemplate.opsForValue(), times(2)).get(anyString());
+        verify(signalMapper).findById(TEST_SIGNAL_ID);
+        verify(redisTemplate.opsForValue()).set(anyString(), any(Signal.class), anyLong(), any(TimeUnit.class));
+    }
+    
+    @Test
+    void getSignalsByVid_FromDatabase() {
+        // 准备测试数据
+        List<Signal> signals = Arrays.asList(testSignal);
+        
+        // 模拟Redis缓存中没有数据
+        when(redisTemplate.opsForValue().get(anyString())).thenReturn(null);
+        // 模拟从数据库中获取数据
+        when(signalMapper.findByVid(TEST_VID)).thenReturn(signals);
+        
+        // 执行测试
+        List<Signal> result = signalService.getSignalsByVid(TEST_VID);
+        
+        // 验证结果
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(TEST_VID, result.get(0).getVid());
+        
+        // 验证调用
+        verify(redisTemplate.opsForValue(), times(2)).get(anyString());
+        verify(signalMapper).findByVid(TEST_VID);
+        verify(redisTemplate.opsForValue()).set(anyString(), any(List.class), anyLong(), any(TimeUnit.class));
+    }
+    
+    @Test
+    void deleteSignal_NotFound() {
+        // 模拟数据不存在的情况
+        when(signalMapper.existsById(TEST_SIGNAL_ID)).thenReturn(false);
+        
+        // 执行测试并验证异常
+        RuntimeException exception = assertThrows(RuntimeException.class,
+            () -> signalService.deleteSignal(TEST_SIGNAL_ID));
+        assertEquals("删除信号失败", exception.getMessage());
+        
+        // 验证调用
+        verify(signalMapper).existsById(TEST_SIGNAL_ID);
+        verify(signalMapper, never()).softDelete(TEST_SIGNAL_ID);
+        verify(redisTemplate, never()).delete(anyString());
+    }
 }

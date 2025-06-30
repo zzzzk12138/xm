@@ -56,13 +56,13 @@ public class CurrentProcessor extends AbstractSignalProcessor {
     @Override
     protected WarnRule findWarnRule(int batteryTypeId, BigDecimal currentDiff) {
 
-        String warnRuleKey = WARN_RULE_KEY_PREFIX + ":1:" + batteryTypeId;
+        String warnRuleKey = WARN_RULE_KEY_PREFIX + ":2:" + batteryTypeId;
 
         try {
             // 用StringRedisTemplate读取原始字符串
             List<String> ruleJsonList = stringRedisTemplate.opsForList().range(warnRuleKey, 0, -1);
             if (ruleJsonList != null && !ruleJsonList.isEmpty()) {
-                log.info("从Redis中获取到电压告警规则列表: key={}, size={}", warnRuleKey, ruleJsonList.size());
+                log.info("从Redis中获取到电流告警规则列表: key={}, size={}", warnRuleKey, ruleJsonList.size());
                 for (String json : ruleJsonList) {
                     try {
                         WarnRule rule = null;
